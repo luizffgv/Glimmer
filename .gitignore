@@ -1,0 +1,8 @@
+# Prepared files
+/lib/
+
+# Generated documentation
+/docs/
+
+/node_modules/
+/package-lock.json

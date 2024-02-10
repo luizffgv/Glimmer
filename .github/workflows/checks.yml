@@ -1,0 +1,31 @@
+name: Checks
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "21"
+      - name: Install
+        id: install
+        run: npm install
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success'}}
+        run: npm run lint
+      - name: Type-check
+        if: ${{ !cancelled() && steps.install.outcome == 'success'}}
+        run: npm run type-check
+      - name: Check formatting
+        if: ${{ !cancelled() && steps.install.outcome == 'success'}}
+        run: npm run formatting-check
+      - name: Test TypeDoc
+        if: ${{ !cancelled() && steps.install.outcome == 'success'}}
+        run: npm run docs

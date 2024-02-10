@@ -1,0 +1,10 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "excludeNotDocumented": true,
+  "excludePrivate": true,
+  "plugin": ["typedoc-material-theme"],
+  "navigation": {
+    "includeCategories": true
+  },
+  "treatValidationWarningsAsErrors": true
+}
