@@ -58,7 +58,7 @@ export class Module {
       const { default: command } = (await import(file)) as { default: unknown };
 
       if (command instanceof Command) {
-        command.data.setName(path.parse(file).name);
+        command.name = path.parse(file).name;
 
         if (command instanceof CategoryCommand) {
           const { dir, name } = path.parse(file);
@@ -76,10 +76,10 @@ export class Module {
               .map((subcommandFile) => path.join(dirname, subcommandFile))
               .map(async (subcommandFile) => {
                 const subcommand = await fileToCommand(subcommandFile);
-                if (subcommand instanceof SubCommand) {
-                  command.data.addSubcommand(subcommand.data);
-                  command.subcommands[subcommand.data.name] = subcommand;
-                } else
+
+                if (subcommand instanceof SubCommand)
+                  command.subcommands[subcommand.name] = subcommand;
+                else
                   throw new Error(
                     wrongExportMessage(subcommandFile, SubCommand.name),
                   );

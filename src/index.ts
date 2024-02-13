@@ -1,5 +1,5 @@
 import { Client, ClientOptions, REST, Routes } from "discord.js";
-import { Command } from "./command-types.js";
+import { CategoryCommand, NormalCommand } from "./command-types.js";
 import { Module } from "./module.js";
 
 export * from "./command-types.js";
@@ -40,7 +40,7 @@ export class Glimmer {
   #token: string;
   #applicationId: string;
   #client: Client;
-  #commands: Record<string, Command> = {};
+  #commands: Record<string, NormalCommand | CategoryCommand> = {};
 
   /**
    * Creates a new {@link Glimmer} instance.
@@ -77,9 +77,9 @@ export class Glimmer {
   addModules(...modules: Module[]): void {
     for (const module of modules) {
       for (const command of module.commands) {
-        if (command.data.name in this.#commands)
-          console.warn(`Overriding command "${command.data.name}"`);
-        this.#commands[command.data.name] = command;
+        if (command.name in this.#commands)
+          console.warn(`Overriding command "${command.name}"`);
+        this.#commands[command.name] = command;
       }
     }
   }
@@ -89,7 +89,7 @@ export class Glimmer {
     const rest = new REST({ version: "10" }).setToken(this.#token);
 
     await rest.put(Routes.applicationCommands(this.#applicationId), {
-      body: Object.values(this.#commands).map(({ data }) => data.toJSON()),
+      body: Object.values(this.#commands).map((command) => command.toDiscord()),
     });
   }
 }
