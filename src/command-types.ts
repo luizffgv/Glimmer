@@ -192,6 +192,35 @@ export class NormalCommand extends Command implements CommandWithPermissions {
 
     return builder;
   }
+
+  /**
+   * Makes a {@link SubCommand} version of this command.
+   *
+   * The new {@link SubCommand | subcommand} will have no permission
+   * requirements as {@link SubCommand | subcommands} can't have them.
+   *
+   * @remarks
+   * You can use this when manipulating modules to move a command to a category.
+   *
+   * @returns {@link SubCommand} version of the command.
+   */
+  toSubCommand(): SubCommand {
+    const parameters: SubCommandConstructionOptions = {
+      description: this.description,
+      handler: this.handler,
+      options: this.#options,
+    };
+
+    if (this.nameLocalizations != undefined)
+      parameters.nameLocalizations = this.nameLocalizations;
+    if (this.descriptionLocalizations != undefined)
+      parameters.descriptionLocalizations = this.descriptionLocalizations;
+
+    const newCommand = new SubCommand(parameters);
+    newCommand.name = this.name;
+
+    return newCommand;
+  }
 }
 
 /**
@@ -227,6 +256,38 @@ export class SubCommand extends Command {
     for (const option of this.#options) addOption(builder, option);
 
     return builder;
+  }
+
+  /**
+   * Makes a {@link NormalCommand} version of this subcommand.
+   *
+   * @remarks
+   * You can use this when manipulating modules to move a subcommand out of a
+   * category.
+   *
+   * @param memberPermissions - Permissions needed for using the new command.
+   * @returns {@link NormalCommand} version of the subcommand.
+   */
+  toNormalCommand(
+    memberPermissions?: Permissions | bigint | number,
+  ): NormalCommand {
+    const parameters: NormalCommandConstructionOptions = {
+      description: this.description,
+      handler: this.handler,
+      options: this.#options,
+    };
+
+    if (this.nameLocalizations != undefined)
+      parameters.nameLocalizations = this.nameLocalizations;
+    if (this.descriptionLocalizations != undefined)
+      parameters.descriptionLocalizations = this.descriptionLocalizations;
+    if (memberPermissions != undefined)
+      parameters.memberPermissions = memberPermissions;
+
+    const newCommand = new NormalCommand(parameters);
+    newCommand.name = this.name;
+
+    return newCommand;
   }
 }
 
