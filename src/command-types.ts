@@ -184,7 +184,7 @@ export class NormalCommand extends Command implements CommandWithPermissions {
     builder
       .setName(this.name)
       .setNameLocalizations(this.nameLocalizations ?? null)
-      .setDescription(this.name)
+      .setDescription(this.description)
       .setDescriptionLocalizations(this.descriptionLocalizations ?? null)
       .setDefaultMemberPermissions(this.memberPermissions);
 
@@ -221,7 +221,7 @@ export class SubCommand extends Command {
     builder
       .setName(this.name)
       .setNameLocalizations(this.nameLocalizations ?? null)
-      .setDescription(this.name)
+      .setDescription(this.description)
       .setDescriptionLocalizations(this.descriptionLocalizations ?? null);
 
     for (const option of this.#options) addOption(builder, option);
@@ -275,7 +275,7 @@ export class CategoryCommand extends Command implements CommandWithPermissions {
     builder
       .setName(this.name)
       .setNameLocalizations(this.nameLocalizations ?? null)
-      .setDescription(this.name)
+      .setDescription(this.description)
       .setDescriptionLocalizations(this.descriptionLocalizations ?? null)
       .setDefaultMemberPermissions(this.memberPermissions);
 
