@@ -18,5 +18,6 @@ it.
 Glimmer is modular. This means someone can make a package containing a Glimmer
 module and you can easily import its functionality into a Glimmer bot.
 
-A Glimmer module currently only supplies commands and categories of commands. To
-create a Glimmer module, check the documentation for the `Module` class.
+A Glimmer module currently supplies commands, categories of commands, and event
+handlers. To create a Glimmer module, check the documentation for the `Module`
+class.

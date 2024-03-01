@@ -3,6 +3,7 @@ import { CategoryCommand, NormalCommand } from "./command-types.js";
 import { Module } from "./module.js";
 
 export * from "./command-types.js";
+export * from "./events.js";
 export * from "./module.js";
 
 /** {@link Glimmer} construction parameters. */
@@ -81,6 +82,9 @@ export class Glimmer {
           console.warn(`Overriding command "${command.name}"`);
         this.#commands[command.name] = command;
       }
+
+      for (const event of module.events)
+        this.#client.on(event.eventType, event.handler);
     }
   }
 

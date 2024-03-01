@@ -6,6 +6,8 @@ import {
   NormalCommand,
   SubCommand,
 } from "./command-types.js";
+import { EventHandler } from "./events.js";
+import { ClientEvents } from "discord.js";
 
 /**
  * Creates an error message for when a module doesn't default-export a value
@@ -43,6 +45,11 @@ export class Module {
    *   category's ES module without extensions. Inside that subdirectory you'll
    *   add an ES module for each command like you'd do with normal commands, but
    *   in this case they will each export a {@link SubCommand}.
+   * ---
+   * - **To add an event handler:**
+   *   Add an ES module in the events/ subdirectory and default-export an
+   *   {@link EventHandler} in it. The file name (excluding extensions) should
+   *   be equal to the event that the handler handles.
    *
    * @param directory - Path to the directory.
    */
@@ -93,6 +100,27 @@ export class Module {
       return command;
     }
 
+    /**
+     * Gets an event handler from a file.
+     *
+     * @param file - File to get the event handler from.
+     * @returns An {@link EventHandler}.
+     */
+    async function fileToEventHandler(
+      file: string,
+    ): Promise<EventHandler<keyof ClientEvents>> {
+      const { default: handler } = (await import(file)) as { default: unknown };
+
+      if (handler instanceof EventHandler) {
+        const fileName = path.parse(file).name;
+        if (handler.eventType != fileName)
+          throw new TypeError(
+            `EventHandler exported in "${file}" handles the ${handler.eventType} event, but has the file name of another event: "${fileName}".`,
+          );
+        return handler;
+      } else throw new TypeError(wrongExportMessage(file, EventHandler.name));
+    }
+
     const commandsDirectory = path.join(directory, "commands");
     const commandFiles = await readdir(commandsDirectory);
     const commandFilePaths = commandFiles
@@ -103,24 +131,43 @@ export class Module {
       commandFilePaths.map((path) => fileToCommand(path)),
     );
 
-    return {
-      commands: commands.filter(
+    const eventsDirectory = path.join(directory, "events");
+    const eventFiles = await readdir(eventsDirectory);
+    const eventFilePaths = eventFiles
+      .filter((file) => file.endsWith(".js"))
+      .map((file) => path.join(eventsDirectory, file));
+
+    const events = await Promise.all(
+      eventFilePaths.map((path) => fileToEventHandler(path)),
+    );
+
+    return new Module(
+      commands.filter(
         (command): command is NormalCommand | CategoryCommand =>
           command instanceof NormalCommand ||
           command instanceof CategoryCommand,
       ),
-    };
+      events,
+    );
   }
 
   /** List of top-level commands. */
   commands: (NormalCommand | CategoryCommand)[];
 
+  /** List of all event handlers. */
+  events: EventHandler<keyof ClientEvents>[];
+
   /**
    * Creates a {@link Module | Glimmer module} with the specified contents.
    *
    * @param commands - List of top-level commands.
+   * @param eventHandlers - List of event handlers.
    */
-  private constructor(commands: (NormalCommand | CategoryCommand)[]) {
+  private constructor(
+    commands: (NormalCommand | CategoryCommand)[],
+    eventHandlers: EventHandler<keyof ClientEvents>[],
+  ) {
     this.commands = commands;
+    this.events = eventHandlers;
   }
 }
