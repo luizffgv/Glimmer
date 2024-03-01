@@ -29,20 +29,20 @@ export class Module {
    * Creates a Glimmer module from a given directory.
    *
    * - **To add a command:**
-   *   Add an ES module in the given directory and default-export a
+   *   Add an ES module in the commands/ subdirectory and default-export a
    *   {@link NormalCommand} in it. The command's default name is the name of
    *   the module without extensions.
    * ---
    * - **To add a command category:**
-   *   Add an ES module in the given directory and default-export a
+   *   Add an ES module in the commands/ subdirectory and default-export a
    *   {@link CategoryCommand} in it. The category's default name is the name
    *   of the module without extensions.
    * ---
    * - **To add subcommands inside a category:**
-   *   Add a subdirectory in the given directory and name it like the category's
-   *   ES module without extensions. Inside that subdirectory you'll add an ES
-   *   module for each command like you'd do with normal commands, but in this
-   *   case they will each export a {@link SubCommand}.
+   *   Add a subdirectory in the commands/ subdirectory and name it like the
+   *   category's ES module without extensions. Inside that subdirectory you'll
+   *   add an ES module for each command like you'd do with normal commands, but
+   *   in this case they will each export a {@link SubCommand}.
    *
    * @param directory - Path to the directory.
    */
@@ -93,13 +93,14 @@ export class Module {
       return command;
     }
 
-    const files = await readdir(directory);
-    const filePaths = files
+    const commandsDirectory = path.join(directory, "commands");
+    const commandFiles = await readdir(commandsDirectory);
+    const commandFilePaths = commandFiles
       .filter((file) => file.endsWith(".js"))
-      .map((file) => path.join(directory, file));
+      .map((file) => path.join(commandsDirectory, file));
 
     const commands = await Promise.all(
-      filePaths.map((path) => fileToCommand(path)),
+      commandFilePaths.map((path) => fileToCommand(path)),
     );
 
     return {
