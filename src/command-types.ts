@@ -1,6 +1,9 @@
 import {
+  ApplicationCommandType,
   ChatInputCommandInteraction,
+  ContextMenuCommandBuilder,
   LocalizationMap,
+  MessageContextMenuCommandInteraction,
   Permissions,
   SlashCommandAttachmentOption,
   SlashCommandBooleanOption,
@@ -13,11 +16,24 @@ import {
   SlashCommandStringOption,
   SlashCommandSubcommandBuilder,
   SlashCommandUserOption,
+  UserContextMenuCommandInteraction,
 } from "discord.js";
 
-/** A handler for a Discord command. */
-export type CommandHandler = (
-  interaction: ChatInputCommandInteraction,
+/** A generic Discord command builder. */
+export type CommandBuilder =
+  | SlashCommandBuilder
+  | SlashCommandSubcommandBuilder
+  | ContextMenuCommandBuilder;
+
+/** A generic command interaction. */
+export type CommandInteraction =
+  | ChatInputCommandInteraction
+  | MessageContextMenuCommandInteraction
+  | UserContextMenuCommandInteraction;
+
+/** A generic handler for discord command interactions. */
+export type CommandHandler<Interaction extends CommandInteraction> = (
+  interaction: Interaction,
 ) => Promise<void>;
 
 /** All Discord command option types. */
@@ -61,8 +77,18 @@ function addOption(
   else command.addNumberOption(option);
 }
 
-/** {@link Command} construction parameters. */
-export interface CommandConstructionOptions {
+/**
+ * Template construction parameters for {@link Command} and its subclasses.
+ *
+ * Unnecessary properties are removed with {@link Omit} (or {@link Pick}) and
+ * some properties may have their types further specified with type
+ * intersections.
+ *
+ * This ensures that all command constructors will have consistent parameters.
+ */
+export interface CommandConstructionOptionsTemplate<
+  Interaction extends CommandInteraction = CommandInteraction,
+> {
   /** Localizations for the name of the command. */
   nameLocalizations?: LocalizationMap;
 
@@ -81,55 +107,70 @@ export interface CommandConstructionOptions {
    * Handler for the command. Will be called with the interaction as an argument
    * whenever a user executes the command.
    */
-  handler: CommandHandler;
+  handler: CommandHandler<Interaction>;
 }
 
+/** {@link Command} construction parameters. */
+export type CommandConstructionOptions<Interaction extends CommandInteraction> =
+  Pick<
+    CommandConstructionOptionsTemplate<Interaction>,
+    "nameLocalizations" | "handler"
+  >;
+
 /** {@link NormalCommand} construction parameters. */
-export type NormalCommandConstructionOptions = CommandConstructionOptions;
+export type NormalCommandConstructionOptions =
+  CommandConstructionOptionsTemplate<ChatInputCommandInteraction>;
 
 /** {@link CategoryCommand} construction parameters. */
 export type CategoryCommandConstructionOptions = Omit<
-  CommandConstructionOptions,
+  CommandConstructionOptionsTemplate,
   "options" | "handler"
 >;
 
 /** {@link SubCommand} construction parameters. */
 export type SubCommandConstructionOptions = Omit<
-  CommandConstructionOptions,
+  CommandConstructionOptionsTemplate<ChatInputCommandInteraction>,
   "permissions"
 >;
 
+/** {@link UserContextMenuCommand} construction parameters. */
+export type UserContextMenuCommandConstructionOptions = Omit<
+  CommandConstructionOptionsTemplate<UserContextMenuCommandInteraction>,
+  "description" | "descriptionLocalizations"
+>;
+
+/** {@link MessageContextMenuCommand} construction parameters. */
+export type MessageContextMenuCommandConstructionOptions = Omit<
+  CommandConstructionOptionsTemplate<MessageContextMenuCommandInteraction>,
+  "description" | "descriptionLocalizations"
+>;
+
 /** A Glimmer Discord command. */
-export abstract class Command {
+export abstract class Command<
+  Interaction extends CommandInteraction = CommandInteraction,
+  Builder extends CommandBuilder = CommandBuilder,
+> {
   /** Name of the command, will be automatically determined by Glimmer. */
   name: string = "";
   /** Localizations for the name of the command. */
   nameLocalizations?: LocalizationMap;
 
-  /** Description of the command. */
-  description: string;
-  /** Localizations for the description of the command. */
-  descriptionLocalizations?: LocalizationMap;
-
   /**
    * Handler for the command. Will be called with the interaction as an argument
    * whenever a user executes the command.
    */
-  readonly handler: CommandHandler;
+  readonly handler: CommandHandler<Interaction>;
 
   /**
    * Constructs a {@link Command} with the given options.
    *
    * @param options - Options for the command.
    */
-  protected constructor(options: CommandConstructionOptions) {
-    ({ description: this.description, handler: this.handler } = options);
+  protected constructor(options: CommandConstructionOptions<Interaction>) {
+    ({ handler: this.handler } = options);
 
     if (options.nameLocalizations != undefined)
       this.nameLocalizations = options.nameLocalizations;
-
-    if (options.descriptionLocalizations != undefined)
-      this.descriptionLocalizations = options.descriptionLocalizations;
   }
 
   /**
@@ -139,26 +180,34 @@ export abstract class Command {
    *
    * You don't need to call this manually, as it'll be called by Glimmer.
    */
-  abstract toDiscord(): SlashCommandBuilder | SlashCommandSubcommandBuilder;
+  abstract toDiscord(): Builder;
 }
 
 /** A command that requires the user to have permission to use it. */
-export interface CommandWithPermissions extends Command {
+export interface CommandWithPermissions {
   /** Permissions a guild member needs to use the command. */
   memberPermissions: Permissions | bigint | number;
 }
 
 /**
- * A Glimmer Discord command that is not a subcommand nor a category.
+ * A Glimmer Discord chat input command that is not a subcommand nor a category.
  *
  * The command's name will be set automatically when making a Glimmer module
  * from a directory.
  */
-export class NormalCommand extends Command implements CommandWithPermissions {
+export class NormalCommand
+  extends Command<ChatInputCommandInteraction, SlashCommandBuilder>
+  implements CommandWithPermissions
+{
   /** Options for the command. */
   #options: CommandOption[];
 
   memberPermissions: Permissions | bigint | number;
+
+  /** Description of the command. */
+  description: string;
+  /** Localizations for the description of the command. */
+  descriptionLocalizations?: LocalizationMap;
 
   /**
    * Constructs a {@link NormalCommand} with the given options.
@@ -167,6 +216,10 @@ export class NormalCommand extends Command implements CommandWithPermissions {
    */
   constructor(options: NormalCommandConstructionOptions) {
     super(options);
+
+    this.description = options.description;
+    if (options.descriptionLocalizations != undefined)
+      this.descriptionLocalizations = options.descriptionLocalizations;
 
     this.memberPermissions = options.memberPermissions ?? 0;
 
@@ -224,9 +277,17 @@ export class NormalCommand extends Command implements CommandWithPermissions {
  * The subcommand's name will be set automatically when making a Glimmer module
  * from a directory.
  */
-export class SubCommand extends Command {
+export class SubCommand extends Command<
+  ChatInputCommandInteraction,
+  SlashCommandSubcommandBuilder
+> {
   /** Options for the command. */
   #options: CommandOption[];
+
+  /** Description of the command. */
+  description: string;
+  /** Localizations for the description of the command. */
+  descriptionLocalizations?: LocalizationMap;
 
   /*
    * Constructs a {@link SubCommand} with the given options.
@@ -235,6 +296,10 @@ export class SubCommand extends Command {
    */
   constructor(options: SubCommandConstructionOptions) {
     super(options);
+
+    this.description = options.description;
+    if (options.descriptionLocalizations != undefined)
+      this.descriptionLocalizations = options.descriptionLocalizations;
 
     this.#options = options.options ?? [];
   }
@@ -293,11 +358,19 @@ export class SubCommand extends Command {
  * The category's name and subcommands will be set automatically when making a
  * Glimmer module from a directory.
  */
-export class CategoryCommand extends Command implements CommandWithPermissions {
+export class CategoryCommand
+  extends Command<ChatInputCommandInteraction, SlashCommandBuilder>
+  implements CommandWithPermissions
+{
   memberPermissions: Permissions | bigint | number;
 
   /** List of {@link SubCommand | subcommands} in the category. */
   subcommands: Record<string, SubCommand> = {};
+
+  /** Description of the command. */
+  description: string;
+  /** Localizations for the description of the command. */
+  descriptionLocalizations?: LocalizationMap;
 
   /**
    * Constructs a {@link CategoryCommand} with the given parameters.
@@ -322,6 +395,10 @@ export class CategoryCommand extends Command implements CommandWithPermissions {
       ...options,
     });
 
+    this.description = options.description;
+    if (options.descriptionLocalizations != undefined)
+      this.descriptionLocalizations = options.descriptionLocalizations;
+
     this.memberPermissions = options.memberPermissions ?? 0;
   }
 
@@ -339,5 +416,72 @@ export class CategoryCommand extends Command implements CommandWithPermissions {
       builder.addSubcommand(subcommand.toDiscord());
 
     return builder;
+  }
+}
+
+/**
+ * A Glimmer Discord user context menu command.
+ *
+ * The command's name will be set automatically when making a Glimmer module
+ * from a directory.
+ */
+export class UserContextMenuCommand
+  extends Command<UserContextMenuCommandInteraction, ContextMenuCommandBuilder>
+  implements CommandWithPermissions
+{
+  memberPermissions: Permissions | bigint | number;
+
+  /**
+   * Constructs a {@link UserContextMenuCommand} with the given parameters.
+   *
+   * @param options - Construction options for the command.
+   */
+  constructor(options: UserContextMenuCommandConstructionOptions) {
+    super(options);
+
+    this.memberPermissions = options.memberPermissions ?? 0;
+  }
+
+  toDiscord(): ContextMenuCommandBuilder {
+    return new ContextMenuCommandBuilder()
+      .setType(ApplicationCommandType.User)
+      .setName(this.name)
+      .setNameLocalizations(this.nameLocalizations ?? null)
+      .setDefaultMemberPermissions(this.memberPermissions);
+  }
+}
+
+/**
+ * A Glimmer Discord message context menu command.
+ *
+ * The command's name will be set automatically when making a Glimmer module
+ * from a directory.
+ */
+export class MessageContextMenuCommand
+  extends Command<
+    MessageContextMenuCommandInteraction,
+    ContextMenuCommandBuilder
+  >
+  implements CommandWithPermissions
+{
+  memberPermissions: Permissions | bigint | number;
+
+  /**
+   * Constructs a {@link MessageContextMenuCommand} with the given parameters.
+   *
+   * @param options - Construction options for the command.
+   */
+  constructor(options: MessageContextMenuCommandConstructionOptions) {
+    super(options);
+
+    this.memberPermissions = options.memberPermissions ?? 0;
+  }
+
+  toDiscord(): ContextMenuCommandBuilder {
+    return new ContextMenuCommandBuilder()
+      .setType(ApplicationCommandType.Message)
+      .setName(this.name)
+      .setNameLocalizations(this.nameLocalizations ?? null)
+      .setDefaultMemberPermissions(this.memberPermissions);
   }
 }

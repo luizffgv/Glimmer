@@ -3,8 +3,13 @@ import * as path from "node:path";
 import {
   CategoryCommand,
   Command,
-  NormalCommand,
   SubCommand,
+  // Linked to in documentation
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  UserContextMenuCommand,
+  // Linked to in documentation
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  MessageContextMenuCommand,
 } from "./command-types.js";
 import { EventHandler } from "./events.js";
 import { ClientEvents } from "discord.js";
@@ -30,21 +35,31 @@ export class Module {
   /**
    * Creates a Glimmer module from a given directory.
    *
-   * - **To add a command:**
-   *   Add an ES module in the commands/ subdirectory and default-export a
-   *   {@link NormalCommand} in it. The command's default name is the name of
+   * - **To add a text input command:**
+   *   Add an ES module in the commands/text-input directory and default-export
+   *   a {@link NormalCommand} in it. The command's default name is the name of
    *   the module without extensions.
    * ---
-   * - **To add a command category:**
-   *   Add an ES module in the commands/ subdirectory and default-export a
-   *   {@link CategoryCommand} in it. The category's default name is the name
+   * - **To add a text input command category:**
+   *   Add an ES module in the commands/text-input directory and default-export
+   *   a {@link CategoryCommand} in it. The category's default name is the name
    *   of the module without extensions.
    * ---
    * - **To add subcommands inside a category:**
-   *   Add a subdirectory in the commands/ subdirectory and name it like the
-   *   category's ES module without extensions. Inside that subdirectory you'll
-   *   add an ES module for each command like you'd do with normal commands, but
-   *   in this case they will each export a {@link SubCommand}.
+   *   Add a subdirectory in the commands/text-input directory and name it like
+   *   the category's ES module without extensions. Inside that subdirectory
+   *   you'll add an ES module for each command like you'd do with normal
+   *   commands, but in this case they will each export a {@link SubCommand}.
+   * ---
+   * - **To add a user context menu command:**
+   *   Add an ES module in the commands/user-menu directory and default-export a
+   *   {@link UserContextMenuCommand} in it. The command's default name is the
+   *   name of the module without extensions.
+   * ---
+   * - **To add a message context menu command:**
+   *   Add an ES module in the commands/message-menu directory and
+   *   default-export a {@link MessageContextMenuCommand} in it. The command's
+   *   default name is the name of the module without extensions.
    * ---
    * - **To add an event handler:**
    *   Add an ES module in the events/ subdirectory and default-export an
@@ -97,7 +112,7 @@ export class Module {
         throw new TypeError(wrongExportMessage(file, Command.name));
       }
 
-      return command;
+      return command as Command;
     }
 
     /**
@@ -121,15 +136,29 @@ export class Module {
       } else throw new TypeError(wrongExportMessage(file, EventHandler.name));
     }
 
-    const commandsDirectory = path.join(directory, "commands");
-    const commandFiles = await readdir(commandsDirectory);
-    const commandFilePaths = commandFiles
-      .filter((file) => file.endsWith(".js"))
-      .map((file) => path.join(commandsDirectory, file));
+    /**
+     * Returns all commands from a subdirectory using {@link fileToCommand}.
+     *
+     * @param subdirectory - Subdirectory to get commands from.
+     * @returns Promise containing commands.
+     */
+    function getCommandsFromSubdirectory(
+      subdirectory: string,
+    ): Promise<Command[]> {
+      const subdirectoryPath = path.join(directory, subdirectory);
+      return readdir(subdirectoryPath).then((commandFiles) => {
+        const commandFilePaths = commandFiles
+          .filter((file) => file.endsWith(".js"))
+          .map((file) => path.join(subdirectoryPath, file));
+        return Promise.all(commandFilePaths.map((path) => fileToCommand(path)));
+      });
+    }
 
-    const commands = await Promise.all(
-      commandFilePaths.map((path) => fileToCommand(path)),
-    );
+    const commands = await Promise.all([
+      getCommandsFromSubdirectory("commands/text-input"),
+      getCommandsFromSubdirectory("commands/message-menu"),
+      getCommandsFromSubdirectory("commands/user-menu"),
+    ]).then((commands) => commands.flat());
 
     const eventsDirectory = path.join(directory, "events");
     const eventFiles = await readdir(eventsDirectory);
@@ -141,18 +170,14 @@ export class Module {
       eventFilePaths.map((path) => fileToEventHandler(path)),
     );
 
-    return new Module(
-      commands.filter(
-        (command): command is NormalCommand | CategoryCommand =>
-          command instanceof NormalCommand ||
-          command instanceof CategoryCommand,
-      ),
-      events,
-    );
+    return new Module(commands, events);
   }
 
-  /** List of top-level commands. */
-  commands: (NormalCommand | CategoryCommand)[];
+  /**
+   * List of commands, excluding subcommands which are included in
+   * {@link CategoryCommand | category commands}.
+   */
+  commands: Command[];
 
   /** List of all event handlers. */
   events: EventHandler<keyof ClientEvents>[];
@@ -160,11 +185,11 @@ export class Module {
   /**
    * Creates a {@link Module | Glimmer module} with the specified contents.
    *
-   * @param commands - List of top-level commands.
+   * @param commands - List of commands.
    * @param eventHandlers - List of event handlers.
    */
   private constructor(
-    commands: (NormalCommand | CategoryCommand)[],
+    commands: Command[],
     eventHandlers: EventHandler<keyof ClientEvents>[],
   ) {
     this.commands = commands;

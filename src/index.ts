@@ -1,5 +1,11 @@
 import { Client, ClientOptions, REST, Routes } from "discord.js";
-import { CategoryCommand, NormalCommand } from "./command-types.js";
+import {
+  CategoryCommand,
+  Command,
+  MessageContextMenuCommand,
+  NormalCommand,
+  UserContextMenuCommand,
+} from "./command-types.js";
 import { Module } from "./module.js";
 
 export * from "./command-types.js";
@@ -41,7 +47,9 @@ export class Glimmer {
   #token: string;
   #applicationId: string;
   #client: Client;
-  #commands: Record<string, NormalCommand | CategoryCommand> = {};
+  #textInputCommands: Record<string, NormalCommand | CategoryCommand> = {};
+  #userContextMenuCommands: Record<string, UserContextMenuCommand> = {};
+  #messageContextMenuCommands: Record<string, MessageContextMenuCommand> = {};
 
   /**
    * Creates a new {@link Glimmer} instance.
@@ -59,10 +67,26 @@ export class Glimmer {
 
     this.#client.on("interactionCreate", async (interaction) => {
       if (interaction.isChatInputCommand()) {
-        const { [interaction.commandName]: command } = this.#commands;
+        const { [interaction.commandName]: command } = this.#textInputCommands;
         if (command == undefined) {
           console.warn(
-            `Received a "${interaction.commandName}" command, but there is no handler for it.`,
+            `Received a "${interaction.commandName}" chat input command, but there is no handler for it.`,
+          );
+        } else await command.handler(interaction);
+      } else if (interaction.isUserContextMenuCommand()) {
+        const { [interaction.commandName]: command } =
+          this.#userContextMenuCommands;
+        if (command == undefined) {
+          console.warn(
+            `Received a "${interaction.commandName}" user context menu command, but there is no handler for it.`,
+          );
+        } else await command.handler(interaction);
+      } else if (interaction.isMessageContextMenuCommand()) {
+        const { [interaction.commandName]: command } =
+          this.#messageContextMenuCommands;
+        if (command == undefined) {
+          console.warn(
+            `Received a "${interaction.commandName}" message context menu command, but there is no handler for it.`,
           );
         } else await command.handler(interaction);
       }
@@ -78,9 +102,26 @@ export class Glimmer {
   addModules(...modules: Module[]): void {
     for (const module of modules) {
       for (const command of module.commands) {
-        if (command.name in this.#commands)
-          console.warn(`Overriding command "${command.name}"`);
-        this.#commands[command.name] = command;
+        if (
+          command instanceof NormalCommand ||
+          command instanceof CategoryCommand
+        ) {
+          if (command.name in this.#textInputCommands)
+            console.warn(`Overriding text input command "${command.name}"`);
+          this.#textInputCommands[command.name] = command;
+        } else if (command instanceof MessageContextMenuCommand) {
+          if (command.name in this.#messageContextMenuCommands)
+            console.warn(
+              `Overriding message context menu command "${command.name}"`,
+            );
+          this.#messageContextMenuCommands[command.name] = command;
+        } else if (command instanceof UserContextMenuCommand) {
+          if (command.name in this.#userContextMenuCommands)
+            console.warn(
+              `Overriding message context menu command "${command.name}"`,
+            );
+          this.#userContextMenuCommands[command.name] = command;
+        }
       }
 
       for (const event of module.events)
@@ -93,7 +134,13 @@ export class Glimmer {
     const rest = new REST({ version: "10" }).setToken(this.#token);
 
     await rest.put(Routes.applicationCommands(this.#applicationId), {
-      body: Object.values(this.#commands).map((command) => command.toDiscord()),
+      body: [
+        this.#textInputCommands,
+        this.#userContextMenuCommands,
+        this.#messageContextMenuCommands,
+      ].flatMap((commands) =>
+        Object.values(commands).map((command: Command) => command.toDiscord()),
+      ),
     });
   }
 }
