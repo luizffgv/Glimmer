@@ -183,8 +183,8 @@ export abstract class Command<
   abstract toDiscord(): Builder;
 }
 
-/** A command that requires the user to have permission to use it. */
-export interface CommandWithPermissions {
+/** Specifies that a command requires the user to have permission to use it. */
+export interface RequiresPermissions {
   /** Permissions a guild member needs to use the command. */
   memberPermissions: Permissions | bigint | number;
 }
@@ -197,7 +197,7 @@ export interface CommandWithPermissions {
  */
 export class NormalCommand
   extends Command<ChatInputCommandInteraction, SlashCommandBuilder>
-  implements CommandWithPermissions
+  implements RequiresPermissions
 {
   /** Options for the command. */
   #options: CommandOption[];
@@ -360,7 +360,7 @@ export class SubCommand extends Command<
  */
 export class CategoryCommand
   extends Command<ChatInputCommandInteraction, SlashCommandBuilder>
-  implements CommandWithPermissions
+  implements RequiresPermissions
 {
   memberPermissions: Permissions | bigint | number;
 
@@ -427,7 +427,7 @@ export class CategoryCommand
  */
 export class UserContextMenuCommand
   extends Command<UserContextMenuCommandInteraction, ContextMenuCommandBuilder>
-  implements CommandWithPermissions
+  implements RequiresPermissions
 {
   memberPermissions: Permissions | bigint | number;
 
@@ -462,7 +462,7 @@ export class MessageContextMenuCommand
     MessageContextMenuCommandInteraction,
     ContextMenuCommandBuilder
   >
-  implements CommandWithPermissions
+  implements RequiresPermissions
 {
   memberPermissions: Permissions | bigint | number;
 
