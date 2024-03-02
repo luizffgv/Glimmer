@@ -74,6 +74,9 @@ export interface CommandConstructionOptions {
   /** Options for the command. */
   options?: CommandOption[];
 
+  /** Permissions a guild member needs to use the command. */
+  memberPermissions?: Permissions | bigint | number;
+
   /**
    * Handler for the command. Will be called with the interaction as an argument
    * whenever a user executes the command.
@@ -81,28 +84,20 @@ export interface CommandConstructionOptions {
   handler: CommandHandler;
 }
 
-/**
- * Additional permissions option for merging with
- * {@link CommandConstructionOptions}
- */
-export interface PermissionsOption {
-  /** Permissions a guild member needs to use the command. */
-  memberPermissions?: Permissions | bigint | number;
-}
-
 /** {@link NormalCommand} construction parameters. */
-export type NormalCommandConstructionOptions = CommandConstructionOptions &
-  PermissionsOption;
+export type NormalCommandConstructionOptions = CommandConstructionOptions;
 
 /** {@link CategoryCommand} construction parameters. */
 export type CategoryCommandConstructionOptions = Omit<
   CommandConstructionOptions,
   "options" | "handler"
-> &
-  PermissionsOption;
+>;
 
 /** {@link SubCommand} construction parameters. */
-export type SubCommandConstructionOptions = CommandConstructionOptions;
+export type SubCommandConstructionOptions = Omit<
+  CommandConstructionOptions,
+  "permissions"
+>;
 
 /** A Glimmer Discord command. */
 export abstract class Command {
