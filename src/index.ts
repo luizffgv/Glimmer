@@ -2,15 +2,26 @@ import { Client, ClientOptions, REST, Routes } from "discord.js";
 import {
   CategoryCommand,
   Command,
+  CommandBuilder,
+  CommandInteraction,
   MessageContextMenuCommand,
   NormalCommand,
   UserContextMenuCommand,
 } from "./command-types.js";
 import { Module } from "./module.js";
+import { GlimmerError } from "./errors.js";
 
 export * from "./command-types.js";
+export * from "./errors.js";
 export * from "./events.js";
 export * from "./module.js";
+
+type ErrorHandler = <
+  TInteraction extends CommandInteraction,
+  TBuilder extends CommandBuilder,
+>(
+  error: GlimmerError<TInteraction, TBuilder>,
+) => void;
 
 /** {@link Glimmer} construction parameters. */
 export interface GlimmerOptions {
@@ -20,6 +31,8 @@ export interface GlimmerOptions {
   token: string;
   /** Discord client options. */
   clientOptions: ClientOptions;
+  /** Callback to handle errors raised by Glimmer. */
+  errorHandler?: ErrorHandler | undefined;
 }
 
 /**
@@ -50,6 +63,7 @@ export class Glimmer {
   #textInputCommands: Record<string, NormalCommand | CategoryCommand> = {};
   #userContextMenuCommands: Record<string, UserContextMenuCommand> = {};
   #messageContextMenuCommands: Record<string, MessageContextMenuCommand> = {};
+  #errorHandler?: ErrorHandler | undefined;
 
   /**
    * Creates a new {@link Glimmer} instance.
@@ -57,6 +71,8 @@ export class Glimmer {
    * @param options - Construction parameters.
    */
   constructor(options: GlimmerOptions) {
+    this.#errorHandler = options.errorHandler;
+
     this.#client = new Client(options.clientOptions);
 
     ({ applicationId: this.#applicationId, token: this.#token } = options);
@@ -72,7 +88,7 @@ export class Glimmer {
           console.warn(
             `Received a "${interaction.commandName}" chat input command, but there is no handler for it.`,
           );
-        } else await command.handler(interaction);
+        } else await this.#handleCommand(command, interaction);
       } else if (interaction.isUserContextMenuCommand()) {
         const { [interaction.commandName]: command } =
           this.#userContextMenuCommands;
@@ -80,7 +96,7 @@ export class Glimmer {
           console.warn(
             `Received a "${interaction.commandName}" user context menu command, but there is no handler for it.`,
           );
-        } else await command.handler(interaction);
+        } else await this.#handleCommand(command, interaction);
       } else if (interaction.isMessageContextMenuCommand()) {
         const { [interaction.commandName]: command } =
           this.#messageContextMenuCommands;
@@ -88,9 +104,28 @@ export class Glimmer {
           console.warn(
             `Received a "${interaction.commandName}" message context menu command, but there is no handler for it.`,
           );
-        } else await command.handler(interaction);
+        } else await this.#handleCommand(command, interaction);
       }
     });
+  }
+
+  async #handleCommand<
+    TInteraction extends CommandInteraction,
+    TBuilder extends CommandBuilder,
+  >(
+    command: Command<TInteraction, TBuilder>,
+    interaction: TInteraction,
+  ): Promise<void> {
+    try {
+      await command.handler(interaction);
+    } catch {
+      this.#errorHandler?.(
+        new GlimmerError<TInteraction, TBuilder>({
+          command,
+          interaction,
+        }),
+      );
+    }
   }
 
   /** Starts the bot. */
