@@ -444,7 +444,7 @@ export class UserContextMenuCommand
 
   toDiscord(): ContextMenuCommandBuilder {
     return new ContextMenuCommandBuilder()
-      .setType(ApplicationCommandType.User)
+      .setType(Number(ApplicationCommandType.Message))
       .setName(this.name)
       .setNameLocalizations(this.nameLocalizations ?? null)
       .setDefaultMemberPermissions(this.memberPermissions);
@@ -479,7 +479,7 @@ export class MessageContextMenuCommand
 
   toDiscord(): ContextMenuCommandBuilder {
     return new ContextMenuCommandBuilder()
-      .setType(ApplicationCommandType.Message)
+      .setType(Number(ApplicationCommandType.Message))
       .setName(this.name)
       .setNameLocalizations(this.nameLocalizations ?? null)
       .setDefaultMemberPermissions(this.memberPermissions);
