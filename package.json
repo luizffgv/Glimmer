@@ -1,5 +1,5 @@
 {
-  "name": "glimmer",
+  "name": "@luizffgv/glimmer",
   "description": "A simple Discord bot framework built around discord.js.",
   "dependencies": {
     "discord.js": "^14.12.1"
@@ -12,6 +12,7 @@
     "eslint-plugin-tsdoc": "^0.2.17",
     "eslint-plugin-unicorn": "^48.0.1",
     "prettier": "^3.2.5",
+    "semantic-release": "^24.2.0",
     "typedoc": "^0.25.8",
     "typedoc-material-theme": "^1.0.2",
     "typescript": "^5.1.6"
@@ -21,7 +22,6 @@
   ],
   "license": "MIT",
   "main": "lib/index.js",
-  "private": true,
   "scripts": {
     "build": "tsc && tsc -p tsconfig-decls.json",
     "docs": "typedoc",
