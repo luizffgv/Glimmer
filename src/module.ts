@@ -13,6 +13,7 @@ import {
 } from "./command-types.js";
 import { EventHandler } from "./events.js";
 import { ClientEvents } from "discord.js";
+import { pathToFileURL } from "node:url";
 
 /**
  * Creates an error message for when a module doesn't default-export a value
@@ -77,7 +78,9 @@ export class Module {
      * @returns A {@link Command}.
      */
     async function fileToCommand(file: string): Promise<Command> {
-      const { default: command } = (await import(file)) as { default: unknown };
+      const { default: command } = (await import(pathToFileURL(file).href)) as {
+        default: unknown;
+      };
 
       if (command instanceof Command) {
         command.name = path.parse(file).name;
@@ -124,7 +127,9 @@ export class Module {
     async function fileToEventHandler(
       file: string,
     ): Promise<EventHandler<keyof ClientEvents>> {
-      const { default: handler } = (await import(file)) as { default: unknown };
+      const { default: handler } = (await import(pathToFileURL(file).href)) as {
+        default: unknown;
+      };
 
       if (handler instanceof EventHandler) {
         const fileName = path.parse(file).name;
