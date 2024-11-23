@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import { Client, ClientOptions, REST, Routes } from "discord.js";
 import {
   CategoryCommand,
