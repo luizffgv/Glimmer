@@ -2,6 +2,7 @@ import {
   ApplicationCommandType,
   ChatInputCommandInteraction,
   ContextMenuCommandBuilder,
+  InteractionContextType,
   LocalizationMap,
   MessageContextMenuCommandInteraction,
   Permissions,
@@ -100,6 +101,9 @@ export interface CommandConstructionOptionsTemplate<
   /** Options for the command. */
   options?: CommandOption[];
 
+  /** Contexts where the command is available in. */
+  contexts?: InteractionContextType[];
+
   /** Permissions a guild member needs to use the command. */
   memberPermissions?: Permissions | bigint | number;
 
@@ -130,19 +134,19 @@ export type CategoryCommandConstructionOptions = Omit<
 /** {@link SubCommand} construction parameters. */
 export type SubCommandConstructionOptions = Omit<
   CommandConstructionOptionsTemplate<ChatInputCommandInteraction>,
-  "permissions"
+  "contexts" | "permissions"
 >;
 
 /** {@link UserContextMenuCommand} construction parameters. */
 export type UserContextMenuCommandConstructionOptions = Omit<
   CommandConstructionOptionsTemplate<UserContextMenuCommandInteraction>,
-  "description" | "descriptionLocalizations"
+  "contexts" | "description" | "descriptionLocalizations"
 >;
 
 /** {@link MessageContextMenuCommand} construction parameters. */
 export type MessageContextMenuCommandConstructionOptions = Omit<
   CommandConstructionOptionsTemplate<MessageContextMenuCommandInteraction>,
-  "description" | "descriptionLocalizations"
+  "contexts" | "description" | "descriptionLocalizations"
 >;
 
 /** A Glimmer Discord command. */
@@ -202,6 +206,9 @@ export class NormalCommand
   /** Options for the command. */
   #options: CommandOption[];
 
+  /** Contexts where the comment is available in. */
+  contexts: InteractionContextType[];
+
   memberPermissions: Permissions | bigint | number;
 
   /** Description of the command. */
@@ -223,6 +230,8 @@ export class NormalCommand
 
     this.memberPermissions = options.memberPermissions ?? 0;
 
+    this.contexts = options.contexts ?? [InteractionContextType.Guild];
+
     this.#options = options.options ?? [];
   }
 
@@ -234,7 +243,8 @@ export class NormalCommand
       .setNameLocalizations(this.nameLocalizations ?? null)
       .setDescription(this.description)
       .setDescriptionLocalizations(this.descriptionLocalizations ?? null)
-      .setDefaultMemberPermissions(this.memberPermissions);
+      .setDefaultMemberPermissions(this.memberPermissions)
+      .setContexts(this.contexts);
 
     for (const option of this.#options) addOption(builder, option);
 
@@ -362,6 +372,9 @@ export class CategoryCommand
   extends Command<ChatInputCommandInteraction, SlashCommandBuilder>
   implements RequiresPermissions
 {
+  /** Contexts where the comment is available in. */
+  contexts: InteractionContextType[];
+
   memberPermissions: Permissions | bigint | number;
 
   /** List of {@link SubCommand | subcommands} in the category. */
@@ -400,6 +413,8 @@ export class CategoryCommand
       this.descriptionLocalizations = options.descriptionLocalizations;
 
     this.memberPermissions = options.memberPermissions ?? 0;
+
+    this.contexts = options.contexts ?? [InteractionContextType.Guild];
   }
 
   toDiscord(): SlashCommandBuilder {
@@ -410,7 +425,8 @@ export class CategoryCommand
       .setNameLocalizations(this.nameLocalizations ?? null)
       .setDescription(this.description)
       .setDescriptionLocalizations(this.descriptionLocalizations ?? null)
-      .setDefaultMemberPermissions(this.memberPermissions);
+      .setDefaultMemberPermissions(this.memberPermissions)
+      .setContexts(this.contexts);
 
     for (const subcommand of Object.values(this.subcommands))
       builder.addSubcommand(subcommand.toDiscord());
