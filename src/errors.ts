@@ -6,6 +6,7 @@ type GlimmerErrorParameters<
 > = {
   command: Command<TInteraction, TBuilder>;
   interaction: TInteraction;
+  error: unknown;
 };
 
 export class GlimmerError<
@@ -14,14 +15,17 @@ export class GlimmerError<
 > extends Error {
   command: Command<TInteraction, TBuilder>;
   interaction: TInteraction;
+  error: unknown;
 
   constructor({
     command,
     interaction,
+    error,
   }: GlimmerErrorParameters<TInteraction, TBuilder>) {
     super();
 
     this.command = command;
     this.interaction = interaction;
+    this.error = error;
   }
 }

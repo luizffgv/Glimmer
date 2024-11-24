@@ -119,11 +119,12 @@ export class Glimmer {
   ): Promise<void> {
     try {
       await command.handler(interaction);
-    } catch {
+    } catch (error) {
       this.#errorHandler?.(
         new GlimmerError<TInteraction, TBuilder>({
           command,
           interaction,
+          error
         }),
       );
     }
